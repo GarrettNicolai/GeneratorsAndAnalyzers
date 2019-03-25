@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 19 2018
+Created March 2019
 
 @author: Garrett Nicolai
 
@@ -14,7 +14,7 @@ language is the language of the inFile
 the Dictionary will limit output to forms observed in the list
 
 We currently support more than 900 languages: 
-Please search the file models.in for by ISO 639 code
+Please search the file src/models.in by ISO 639 code
 to see which languages are supported
 """
 
@@ -26,7 +26,7 @@ import re
 import os
 from optparse import OptionParser
 from subprocess import call
-
+import regex
 
 
 #Get Options
@@ -58,8 +58,6 @@ models = {}
 lookup = {}
 lookupGen = {}
 languages = []
-orig2um = {}
-import regex
 
 
 
@@ -98,7 +96,7 @@ if not models:
 
 fConvert = ""
 
-tagsIn = codecs.open("tags", "r", "utf-8")
+tagsIn = codecs.open("./tags", "r", "utf-8")
 Tags = {}
 Tags["verbs"] = {}
 Tags["nouns"] = {}
@@ -106,6 +104,10 @@ Affixing = {}
 Affixes = {}
 Affixing["verbs"] = ""
 Affixing["nouns"] = ""
+
+#Affixes are used to determine likelihood that word is noun/adjective, or verb,
+#to determine if noun or verb model should be run
+#If no one POS is dominant, both models are run.
 
 for line in affixFile:
     parts = line.split("\t")
@@ -115,7 +117,9 @@ for line in affixFile:
     Affixes[parts[0]]["ADJS"] = float(parts[3]) 
     Affixes[parts[0]]["OTHER"] = float(parts[4])
         
-        
+
+#Establish tagset for language, and determine if language is prefixing,
+#suffixing, or circumfixing
 for line in tagsIn:
     parts = line.split("\t")
     language = parts[0]
@@ -243,7 +247,6 @@ for line in analyzeIn:
 
 
 
-               #intermediateFile.write("#:" + ":".join(line.strip()).replace(" ", "!") + "@" + "\n") #DTL-specific format
        else:
            intermediateNouns.write(line + "\n") #Catch-all
            intermediateVerbs.write(line + "\n") #Catch-all
@@ -255,10 +258,11 @@ analyzedOutput.close()
 intermediateNouns.close()
 intermediateVerbs.close()
 
-#As long as there is an NN model, then we can analyze using the NN
-
+#DTL requires input be in a certain format, and produces output in the same format
+#Here, we do some post-processing cleanup
 if (not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "NA") or (options.generate and models["DTLNAG"] != "NA" and models["DTLVG"] != "NA"):  #Do DTL Analysis
     try:
+        #Generation mode
         if(not options.generate):
             nBest = 5
             if(options.nBest is not None):
@@ -266,13 +270,15 @@ if (not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "
             call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAMA"]])     
             call(["python", "postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
             call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVMA"]])
-            call(["python", "postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])   
+            call(["python", "postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])
+            #If a dictionary has been specified, do some filtering
             if(options.dictionary is not None):
                 call(["python", "promoteResults.py", options.dictionary, "analyzed.out2", "analyzed.out4"])   
                 call(["python", "promoteResults.py", options.dictionary, "analyzed.out3", "analyzed.out5"])   
                 call(["mv", "analyzed.out4", "analyzed.out2"])
                 call(["mv", "analyzed.out5", "analyzed.out3"])
 
+        #Analysis mode
         else:
             nBest = 5
             if(options.nBest is not None):
@@ -304,7 +310,7 @@ for filename in filenames:
     inFile = codecs.open(filename, "r", "utf-8") 
     for line in inFile:
         parts = line.split("\t")
-        if(parts[4].strip() == "0"):
+        if(parts[4].strip() == "0"):  #This line covers cases where the language does not inflect a certaion POS, so the DTL model is empty
             if(parts[3] == "1"):
                 line = parts[0] + "\t" + parts[0] + "\n"
             else:
@@ -319,8 +325,8 @@ for filename in filenames:
 
 call(["rm", "-f", "toAnalyze.txt"])
 call(["rm", "-f", "analyzed.out1"])
-#call(["rm", "-f", "analyzed.out2"])
-#call(["rm", "-f", "analyzed.out3"])
+call(["rm", "-f", "analyzed.out2"])
+call(["rm", "-f", "analyzed.out3"])
 call(["rm", "-f", "analyzed.nouns.dtl.out.phraseOut"])
 call(["rm", "-f", "analyzed.verbs.dtl.out"])
 

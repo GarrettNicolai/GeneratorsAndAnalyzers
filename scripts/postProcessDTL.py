@@ -1,85 +1,83 @@
 import sys
 import codecs
 import re
+import regex
+import operator
 
+fDict = codecs.open(sys.argv[1], "r", "utf-8")
+fDTL = codecs.open(sys.argv[2], "r", "utf-8")
+fOut = codecs.open(sys.argv[3], "w", "utf-8")
 
+Dict = {}
+DTLScores = {}
 
-fIn = codecs.open(sys.argv[1], "r", "utf-8")
-fOut = codecs.open(sys.argv[2], "w", "utf-8")
-affixing = sys.argv[3].lower
+for i in fDict:
+    parts = i.strip().lower().split("\t");
+    Dict[parts[0]] = True
 
-orig2um = {}
-fConvert = ""
-
-for i in fIn:
-    if(i.strip() == ""):
+for i in fDTL:
+    parts = i.replace("|", "").replace("_","").replace("#","").split("\t")
+    if(len(parts) < 2):
         continue
-    k = 0;
-    i = i.strip()
-    words = i.split("\t")
-    surface = words[0]
-    if(len(words) < 2):
-        z = 0
-    analysis = words[1]
-    rank = words[2]
-    score = words[3]
-    surfaceParts = surface.strip().split("|")
-    analysisParts = analysis.strip().split("|")
-#    z = 0;
-    tag = ""
-    lemma = ""
-    stem = ""
-    prefix = ""
-    suffix = ""
-    j = 0;
-    deletion = ""
-    while j < len(analysisParts):
-        while "_" in analysisParts[j]:
-            deletion += surfaceParts[j]
-            j+= 1
-        if "!" in surfaceParts[j] and (affixing == 'p' or affixing == 'c'):
-            tag = analysisParts[j]
-            prefix += surfaceParts[j]
-            j += 1 
-            continue    
-            
-        if "#" in surfaceParts[j] and (affixing == 's' or affixing == 'c'):
-            tag = analysisParts[j]
-            suffix += deletion
-            deletion = ""
-            suffix += surfaceParts[j]
-            j += 1
+    if(parts[3] == "-inf"):
+        continue
+    if parts[0] not in DTLScores:
+        DTLScores[parts[0]] = {}
+        DTLScores[parts[0]]["MAXIMUM"] = -1000000000
+        DTLScores[parts[0]]["MINIMUM"] = 100000000
+    if(parts[1] in DTLScores[parts[0]]):
             continue
-        if ("!" in surfaceParts[j] and affixing == 's') or ("#" in surfaceParts[j] and affixing == 'p'):
-            #lemma += analysisParts[j]
-            #stem += surfaceParts[j]
-            tag = analysisParts[j]
-            stem += deletion
-            deletion = ""
-            j += 1
-            continue
-            
-        if lemma == "" and (affixing == 'p' or affixing == 'c'):
-            prefix += deletion
-            deletion = ""
+
+    maximum = DTLScores[parts[0]]["MAXIMUM"]
+    minimum = DTLScores[parts[0]]["MINIMUM"]
+
+    DTLScores[parts[0]][parts[1]] = float(parts[3])
+    if(float(parts[3]) > maximum):
+        DTLScores[parts[0]]["MAXIMUM"] = float(parts[3])
+    if(float(parts[3]) < minimum):
+        DTLScores[parts[0]]["MINIMUM"] = float(parts[3])
+
+normalizedScores = {}
+for i in DTLScores:
+    predictions = DTLScores[i]
+    normalizedScores[i] = {}
+    maximum = predictions["MAXIMUM"]
+    minimum = predictions["MINIMUM"]
+    difference = maximum - minimum
+    #if(difference == 0):
+    #    print(DTLScores[i])
+    #    continue
+    for j in predictions:
+        if(j == "MAXIMUM" or j == "MINIMUM"):
+            continue;
+        if(difference == 0.0):
+            normalizedScores[i][j] = 1.1
         else:
-            stem += deletion
-            deletion = ""
-        lemma += analysisParts[j]
-        stem += surfaceParts[j]
-        j += 1
+            normalizedScores[i][j] = ((predictions[j] - minimum) / difference) + 0.10
+        analysis = re.sub(r"([A-Z])\+([A-Z])", r"\1;\2", j)
+        analysisParts = analysis.split("+");
+        lemma = analysisParts[0]
+        if("*" in lemma):
+            if(len(analysisParts) < 2):
+                continue
+            lemma = analysisParts[1]
+        if(lemma in Dict):
+            normalizedScores[i][j] += 1.1;
+
+for i in normalizedScores:
+    predictions = normalizedScores[i]
+    sorted_x = sorted(predictions.items(), key=operator.itemgetter(1), reverse=True)
+    count = 1;
+    for j in sorted_x:
+        if(float(j[1]) > 1.1):
+            fOut.write(i + "\t" + j[0] + "\t" + str(count) + "\n")
+            count += 1
+        else:
+            break
+    if(count == 1):
+        fOut.write(i + "\n")
         
-    features = tag.strip().split(";")
-    nufeatures = []
-    lemma = re.sub(r"\([^A-Z;]\)\+\([^A-Z;]\)", r"\1\2", lemma)
-    lemma = re.sub(r"^\++", r"", lemma)
-    lemma = re.sub(r"\++$", r"", lemma)
 
-
-
-    fOut.write(surface.strip().replace("!","").replace("#","").replace(":","").replace("|","").replace("_","") + "\t" + lemma.replace("!","").replace("#","") + "\t" + ";".join(nufeatures) + "\t" + rank + "\t" + score + "\n")
-    
-
-fIn.close();
+fDict.close();
+fDTL.close();
 fOut.close();
-
