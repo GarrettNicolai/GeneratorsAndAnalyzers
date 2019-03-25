@@ -1,5 +1,5 @@
-# analyzers
-Runnable Morphological Analysis and Generation Tools from aligned bible corpora
+# Description 
+Runnable Morphological Analysis and Generation Tools 
 
 ## Warning
 
@@ -7,7 +7,7 @@ This software is at an **alpha** stage.
 
 ## Prerequisites
 
-[DirecTL+](https://github.com/GarrettNicolai/DTL)
+[DirecTL+](https://github.com/GarrettNicolai/DTLM)
 
 
 
@@ -31,6 +31,15 @@ export CTRANSLATE=<location of ctranslate binary>
 
 ```
 python src/analyze.py -i input.wordlist -a output.analyses -l language -n nBest -d dictionary -g
+
+The input list contains a list of words to either analyze, or a list of lemmas
+from which to generate.  
+
+NBest produces the n-best hypotheses for each input form; default is 5.
+
+Dictionary is a list of acceptable types or lemmas.
+
+-g will run the system in generation mode, as opposed to analysis mode.
 ```
 
 For example:

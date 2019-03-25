@@ -288,7 +288,7 @@ if (not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "
                 call(["mv", "analyzed.out4", "analyzed.out2"])
                 call(["mv", "analyzed.out5", "analyzed.out3"])
     except:
-         print("There was an error.  Is DirecTL+ installed? If not, it can be obtained at ...")
+        print("There was an error.  Is DirecTL+ installed? If not, it can be obtained at https://github.com/GarrettNicolai/DTLM")
 
 #In the worst case, we skip the examples, and declare a miss
 else:
