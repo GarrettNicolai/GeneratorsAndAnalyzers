@@ -44,7 +44,10 @@ parser.add_option("-n", "--nBest", dest="nBest",
                   help="Number of analysis candidates to return")
 parser.add_option("-d", "--dictionary", dest="dictionary",
                   help="A dictionary of forms to limit the output")
-
+parser.add_option("-V", "--verbs", action="store_true",dest="verbs",
+                  help="Only run the verbal model")
+parser.add_option("-N", "--nouns", action="store_true",dest="nouns",
+                  help="Only run the nominal model")
 (options,args) = parser.parse_args()
 
 if not options.inFile or not options.outFile or not options.language:
@@ -209,47 +212,52 @@ for line in analyzeIn:
 
        if((not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "NA")) or (options.generate and models["DTLNAG"] != "NA" and models["DTLVG"] != "NA"):
            if(options.generate):
-               for tag in Tags["nouns"]:
-                   if("++" in tag):
-                       generationForm = tag.replace("++",":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:")
-                   elif(tag.endswith("+")):
-                       generationForm = re.sub(r"\+$", ":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)), tag)
-                   elif(tag.startswith("+")):
-                       generationForm = re.sub(r"^\+", ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:", tag)
-                   if(VScore < 0.5): #ie, not likely to just be a verb
-                       intermediateNouns.write(generationForm + "\n")
-               for tag in Tags["verbs"]:
-                   if("++" in tag):
-                       generationForm = tag.replace("++",":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:")
-                   elif(tag.endswith("+")):
-                       generationForm = re.sub(r"\+$", ":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)), tag)
-                   elif(tag.startswith("+")):
-                       generationForm = re.sub(r"^\+", ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:", tag)
-                   if(NScore < 0.5): #Not likely to just be a noun
-                       intermediateVerbs.write(generationForm + "\n")
+               if(options.verbs is None):
+                   for tag in Tags["nouns"]:
+                       if("++" in tag):
+                           generationForm = tag.replace("++",":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:")
+                       elif(tag.endswith("+")):
+                           generationForm = re.sub(r"\+$", ":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)), tag)
+                       elif(tag.startswith("+")):
+                           generationForm = re.sub(r"^\+", ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:", tag)
+                       if(VScore < 0.5): #ie, not likely to just be a verb
+                           intermediateNouns.write(generationForm + "\n")
+               if(options.nouns is None):
+                   for tag in Tags["verbs"]:
+                       if("++" in tag):
+                           generationForm = tag.replace("++",":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:")
+                       elif(tag.endswith("+")):
+                           generationForm = re.sub(r"\+$", ":+:" + ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)), tag)
+                       elif(tag.startswith("+")):
+                           generationForm = re.sub(r"^\+", ":".join(regex.findall(r"\X", line.lower().strip(), regex.U)) + ":+:", tag)
+                       if(NScore < 0.5): #Not likely to just be a noun
+                           intermediateVerbs.write(generationForm + "\n")
            else:
-               if(VScore < 0.5):
-                   if(Affixing["nouns"] == "C" or Affixing["nouns"] == "P"):
-                       intermediateNouns.write("#:")
-                   intermediateNouns.write(":".join(regex.findall(r"\X", line.lower().strip(), regex.U)))
-                   if(Affixing["nouns"] == "C" or Affixing["nouns"] == "S"):
-                       intermediateNouns.write(":!")
-                   intermediateNouns.write("\n")
-
-               if(NScore < 0.5):
-                   if(Affixing["verbs"] == "C" or Affixing["verbs"] == "P"):
-                       intermediateVerbs.write("#:")
-                   intermediateVerbs.write(":".join(regex.findall(r"\X", line.lower().strip(), regex.U)))
+               if(options.verbs is None):
+                   if(VScore < 0.5):
+                       if(Affixing["nouns"] == "C" or Affixing["nouns"] == "P"):
+                           intermediateNouns.write("#:")
+                       intermediateNouns.write(":".join(regex.findall(r"\X", line.lower().strip(), regex.U)))
+                       if(Affixing["nouns"] == "C" or Affixing["nouns"] == "S"):
+                           intermediateNouns.write(":!")
+                       intermediateNouns.write("\n")
+               if(options.nouns is None):
+                   if(NScore < 0.5):
+                       if(Affixing["verbs"] == "C" or Affixing["verbs"] == "P"):
+                           intermediateVerbs.write("#:")
+                       intermediateVerbs.write(":".join(regex.findall(r"\X", line.lower().strip(), regex.U)))
                 
-                   if(Affixing["verbs"] == "C" or Affixing["verbs"] == "S"):
-                       intermediateVerbs.write(":!")
-                   intermediateVerbs.write("\n")
+                       if(Affixing["verbs"] == "C" or Affixing["verbs"] == "S"):
+                           intermediateVerbs.write(":!")
+                       intermediateVerbs.write("\n")
 
 
 
        else:
-           intermediateNouns.write(line + "\n") #Catch-all
-           intermediateVerbs.write(line + "\n") #Catch-all
+           if(not options.verbs):
+               intermediateNouns.write(line + "\n") #Catch-all
+           if(not options.nouns):
+               intermediateVerbs.write(line + "\n") #Catch-all
 
 
 
@@ -267,39 +275,48 @@ if (not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "
             nBest = 5
             if(options.nBest is not None):
                 nBest = options.nBest
-            call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAMA"]])     
-            call(["python", "postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
-            call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVMA"]])
-            call(["python", "postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])
+            if(options.verbs is None):
+                call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAMA"]])     
+                call(["python", "../scripts/postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
+            if(options.nouns is None):
+                call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVMA"]])
+                call(["python", "../scripts/postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])
             #If a dictionary has been specified, do some filtering
             if(options.dictionary is not None):
-                call(["python", "promoteResults.py", options.dictionary, "analyzed.out2", "analyzed.out4"])   
-                call(["python", "promoteResults.py", options.dictionary, "analyzed.out3", "analyzed.out5"])   
-                call(["mv", "analyzed.out4", "analyzed.out2"])
-                call(["mv", "analyzed.out5", "analyzed.out3"])
+                if(options.verbs is None):
+                    call(["python", "../scripts/promoteResults.py", options.dictionary, "analyzed.out2", "analyzed.out4"])   
+                    call(["mv", "analyzed.out4", "analyzed.out2"])
+                if(options.nouns is None):
+                    call(["python", "../scripts/promoteResults.py", options.dictionary, "analyzed.out3", "analyzed.out5"])   
+                    call(["mv", "analyzed.out5", "analyzed.out3"])
 
         #Analysis mode
         else:
             nBest = 5
             if(options.nBest is not None):
                 nBest = options.nBest
-
-            call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAG"]])     
-            call(["python", "postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
-            call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVG"]])     
-            call(["python", "postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])   
+            if(options.verbs is None):
+                call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAG"]])     
+                call(["python", "../scripts/postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
+            if(options.verbs is None):
+                call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVG"]])     
+                call(["python", "../scripts/postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])   
             if(options.dictionary is not None):
-                call(["python", "promoteResults.py", options.dictionary, "analyzed.out2", "analyzed.out4"])   
-                call(["python", "promoteResults.py", options.dictionary, "analyzed.out3", "analyzed.out5"])   
-                call(["mv", "analyzed.out4", "analyzed.out2"])
-                call(["mv", "analyzed.out5", "analyzed.out3"])
+                if(options.verbs is None):
+                    call(["python", "../scripts/promoteResults.py", options.dictionary, "analyzed.out2", "analyzed.out4"])   
+                    call(["mv", "analyzed.out4", "analyzed.out2"])
+                if(options.nouns is None):
+                    call(["python", "../scripts/promoteResults.py", options.dictionary, "analyzed.out3", "analyzed.out5"])   
+                    call(["mv", "analyzed.out5", "analyzed.out3"])
     except:
         print("There was an error.  Is DirecTL+ installed? If not, it can be obtained at https://github.com/GarrettNicolai/DTLM")
 
 #In the worst case, we skip the examples, and declare a miss
 else:
-    call(["mv", "nounsToAnalyze.txt", "analyzed.out2"]) 
-    call(["mv", "verbsToAnalyze.txt", "analyzed.out3"]) 
+    if(options.verbs is None):
+        call(["mv", "nounsToAnalyze.txt", "analyzed.out2"]) 
+    if(options.nouns is None):
+        call(["mv", "verbsToAnalyze.txt", "analyzed.out3"]) 
     
 
 
@@ -307,18 +324,24 @@ else:
 filenames = ['analyzed.out1', 'analyzed.out2', 'analyzed.out3']
 outFile = codecs.open(options.outFile, "w", "utf-8")    
 for filename in filenames:
-    inFile = codecs.open(filename, "r", "utf-8") 
-    for line in inFile:
-        parts = line.split("\t")
-        if(parts[4].strip() == "0"):  #This line covers cases where the language does not inflect a certaion POS, so the DTL model is empty
-            if(parts[3] == "1"):
-                line = parts[0] + "\t" + parts[0] + "\n"
-            else:
+    try:
+        inFile = codecs.open(filename, "r", "utf-8") 
+        for line in inFile:
+            parts = line.split("\t")
+            if(len(parts) < 4):
+                outFile.write(line)
                 continue
-        if(len(parts) == 1):
-            line = line.strip() + "\t" + "MISS" + "\n"; #Unanalyzed, for cases where NN and DTL are unavailable, but lookup is available
-        outFile.write(line)
-    inFile.close()
+            if(parts[4].strip() == "0"):  #This line covers cases where the language does not inflect a certaion POS, so the DTL model is empty
+                if(parts[3] == "1"):
+                    line = parts[0] + "\t" + parts[0] + "\n"
+                else:
+                    continue
+            if(len(parts) == 1):
+                line = line.strip() + "\t" + "MISS" + "\n"; #Unanalyzed, for cases where NN and DTL are unavailable, but lookup is available
+            outFile.write(line)
+        inFile.close()
+    except:
+        continue
 
 
 #Cleanup
@@ -328,6 +351,8 @@ call(["rm", "-f", "analyzed.out1"])
 call(["rm", "-f", "analyzed.out2"])
 call(["rm", "-f", "analyzed.out3"])
 call(["rm", "-f", "analyzed.nouns.dtl.out.phraseOut"])
+call(["rm", "-f", "analyzed.verbs.dtl.out.phraseOut"])
+call(["rm", "-f", "analyzed.nouns.dtl.out"])
 call(["rm", "-f", "analyzed.verbs.dtl.out"])
 
 outFile.close()
