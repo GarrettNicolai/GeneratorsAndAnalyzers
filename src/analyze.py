@@ -328,10 +328,7 @@ for filename in filenames:
         inFile = codecs.open(filename, "r", "utf-8") 
         for line in inFile:
             parts = line.split("\t")
-            if(len(parts) < 4):
-                outFile.write(line)
-                continue
-            if(parts[4].strip() == "0"):  #This line covers cases where the language does not inflect a certaion POS, so the DTL model is empty
+            if(len(parts) >= 5 and parts[4].strip() == "0"):  #This line covers cases where the language does not inflect a certaion POS, so the DTL model is empty
                 if(parts[3] == "1"):
                     line = parts[0] + "\t" + parts[0] + "\n"
                 else:
