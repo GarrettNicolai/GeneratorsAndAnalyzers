@@ -140,7 +140,7 @@ for line in tagsIn:
                 elif(tag.endswith("+")):
                     Affixing["verbs"] = "P"
 
-        if("NN" in tag):
+        if("NN" in tag or "ADJ" in tag):
             Tags["nouns"][tag] = True
             if(Affixing["nouns"] == ""):
                 if("++" in tag):
@@ -298,7 +298,7 @@ if (not options.generate and models["DTLNAMA"] != "NA" and models["DTLVMA"] != "
             if(options.verbs is None):
                 call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","nounsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.nouns.dtl.out", "--mi", models["DTLNAG"]])     
                 call(["python", "../scripts/postProcessDTL.py", "analyzed.nouns.dtl.out.phraseOut", "analyzed.out2", Affixing["nouns"]])   
-            if(options.verbs is None):
+            if(options.nouns is None):
                 call([os.environ["DTL"], "--cs", "4", "--ng", "9", "--copy", "--jointMgram", "3", "--inChar", ":", "-t","verbsToAnalyze.txt", "--nBestTest", str(nBest), "-a","analyzed.verbs.dtl.out", "--mi", models["DTLVG"]])     
                 call(["python", "../scripts/postProcessDTL.py", "analyzed.verbs.dtl.out.phraseOut", "analyzed.out3", Affixing["verbs"]])   
             if(options.dictionary is not None):
